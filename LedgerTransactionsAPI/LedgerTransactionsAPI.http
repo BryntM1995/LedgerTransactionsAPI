@@ -1,0 +1,6 @@
+@LedgerTransactionsAPI_HostAddress = http://localhost:5071
+
+GET {{LedgerTransactionsAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
