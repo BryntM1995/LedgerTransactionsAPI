@@ -1,4 +1,5 @@
-﻿using LedgerTransactionsAPI.Models;
+﻿using LedgerTransactionsAPI.Dtos;
+using LedgerTransactionsAPI.Models;
 
 namespace LedgerTransactionsAPI.Repositories.Interfaces;
 

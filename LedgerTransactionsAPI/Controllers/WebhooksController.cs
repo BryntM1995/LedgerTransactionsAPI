@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 
 namespace LedgerTransactionsAPI.Controllers;
 
@@ -7,13 +6,13 @@ namespace LedgerTransactionsAPI.Controllers;
 [Route("v1/webhooks")]
 public class WebhooksController : ControllerBase
 {
-    private readonly ILogger<WebhooksController> _logger;
-    public WebhooksController(ILogger<WebhooksController> logger) => _logger = logger;
+    private readonly ILogger<WebhooksController> _log;
+    public WebhooksController(ILogger<WebhooksController> log) => _log = log;
 
     [HttpPost("test")]
     public IActionResult Receive([FromBody] object payload)
     {
-        _logger.LogInformation("Webhook received: {Payload}", System.Text.Json.JsonSerializer.Serialize(payload));
+        _log.LogInformation("Webhook received: {Payload}", System.Text.Json.JsonSerializer.Serialize(payload));
         return Ok(new { status = "ok" });
     }
 }

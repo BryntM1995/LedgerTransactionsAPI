@@ -125,7 +125,7 @@ public class LedgerService : ILedgerService
         if (req.SourceAccountId == req.TargetAccountId)
             throw new InvalidOperationException("SAME_ACCOUNT");
         if (req.Amount <= 0)
-            throw new ArgumentException("Amount must be > 0");
+            throw new ArgumentException("Amount can't be 0");
 
         await using var tx = await _uow.BeginTransactionAsync(ct);
 

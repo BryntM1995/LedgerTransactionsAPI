@@ -1,42 +1,54 @@
-using LedgerTransactionsAPI.Data;
+﻿using LedgerTransactionsAPI.Data;
 using LedgerTransactionsAPI.Middlewares;
 using LedgerTransactionsAPI.Outbox;
 using LedgerTransactionsAPI.Repositories.Ef;
 using LedgerTransactionsAPI.Repositories.Interfaces;
 using LedgerTransactionsAPI.Services;
 using LedgerTransactionsAPI.Swagger;
-using LedgerTransactionsAPI.Swagger.LedgerTransactions;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddScoped<ILedgerService, LedgerService>();
+// DbContext
+builder.Services.AddDbContext<LedgerDbContext>(opt =>
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("Postgres"))
+);
+
+// Repos + UoW
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<ILedgerEntryRepository, LedgerEntryRepository>();
 builder.Services.AddScoped<IOutboxRepository, OutboxRepository>();
 builder.Services.AddScoped<IIdempotencyRepository, IdempotencyRepository>();
-builder.Services.Configure<OutboxOptions>(builder.Configuration.GetSection("Outbox"));
-builder.Services.AddHttpClient("outbox"); // HttpClient para publicar
+builder.Services.AddScoped<ITransactionReadRepository, TransactionReadRepository>();
+builder.Services.AddScoped<ILedgerReadRepository, LedgerReadRepository>();
+
+// Services
+builder.Services.AddScoped<ILedgerService, LedgerService>();
+builder.Services.AddScoped<IReadService, ReadService>();
+builder.Services.AddScoped<ITransactionReadRepository, TransactionReadRepository>();
+builder.Services.AddScoped<ILedgerReadRepository, LedgerReadRepository>();
+
+// Outbox (config -> httpclient -> worker)
+builder.Services.Configure<OutboxOptions>(
+    builder.Configuration.GetSection("Outbox"));
+
+builder.Services.AddHttpClient("outbox");
+
 builder.Services.AddHostedService<OutboxPublisher>();
 
-// DbContext
-builder.Services.AddDbContext<LedgerDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
-
+// Controllers + Swagger
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.OperationFilter<IdempotencyKeyHeaderFilter>();
+    c.OperationFilter<IdempotencyKeyHeaderFilter>(); // Header en endpoints marcados con [Idempotent]
 });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -45,8 +57,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
+// Idempotencia antes de Authorization para cachear respuestas repetidas
 app.UseIdempotency();
+
+app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
