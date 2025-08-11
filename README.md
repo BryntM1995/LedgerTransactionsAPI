@@ -61,5 +61,7 @@ Update-Database
 Add-Migration AddFxValuation
 Update-Database
 
+USUARIO DE PRUEBA
+
 Autenticación y autorización
 { "username": "auditor", "password": "auditor123" }
