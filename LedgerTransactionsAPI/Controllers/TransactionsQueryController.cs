@@ -28,9 +28,8 @@ public class TransactionsQueryController : ControllerBase
         var isAuditor = User.IsInRole("Auditor");
         if (!isAuditor)
         {
-            // Teller must match his account claim
-            var acctClaim = User.FindFirst("acct")?.Value;
-            if (!Guid.TryParse(acctClaim, out var myAcct) || myAcct != id)
+                // El reto debería solicitar la implementación de  asignacion de un rol por cuenta creada
+                // si un customer hace la solicitud de ver las transferencias se filtraria por el id de su cuenta
                 return Forbid(); // 403
         }
 

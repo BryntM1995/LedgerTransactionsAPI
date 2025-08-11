@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using LedgerTransactionsAPI.Models;
 using LedgerTransactionsAPI.Repositories.Interfaces;
-using LedgerTransactionsAPI.Services;
 using Microsoft.EntityFrameworkCore.Storage;
 
 public sealed class FakeAccountRepository : IAccountRepository
