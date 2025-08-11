@@ -9,5 +9,6 @@
         public decimal Credit { get; set; }       // Monto en haber
         public string? Currency { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
     }
 }

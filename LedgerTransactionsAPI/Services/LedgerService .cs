@@ -49,7 +49,7 @@ public class LedgerService : ILedgerService
 
     public async Task<Guid> DepositAsync(Guid accountId, decimal amount, string? description, CancellationToken ct = default)
     {
-        if (amount <= 0) throw new ArgumentException("Amount must be > 0");
+        if (amount <= 0) throw new ArgumentException("Amount must be more than 0");
 
         await using var tx = await _uow.BeginTransactionAsync(ct);
 

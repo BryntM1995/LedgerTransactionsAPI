@@ -2,6 +2,7 @@
 using LedgerTransactionsAPI.Dtos;
 using LedgerTransactionsAPI.Repositories.Interfaces; // PageDirection
 using LedgerTransactionsAPI.Services;                // IReadService
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LedgerTransactionsAPI.Controllers;
@@ -13,8 +14,8 @@ public class LedgerQueryController : ControllerBase
     private readonly IReadService _read;
     public LedgerQueryController(IReadService read) => _read = read;
 
+    [Authorize(Policy = "AuditorOnly")]
     [HttpGet]
-    [ProducesResponseType(typeof(PagedResult<LedgerEntryItem>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResult<LedgerEntryItem>>> Get(
         [FromQuery] Guid? accountId,
         [FromQuery] int limit = 50,

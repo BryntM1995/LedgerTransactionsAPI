@@ -7,12 +7,11 @@ namespace LedgerTransactionsAPI.Controllers;
 
 [ApiController]
 [Route("v1")]
-public class LedgerTransactionsController : ControllerBase
+public class AccountOperationController(ILedgerService svc) : ControllerBase
 {
-    private readonly ILedgerService _svc;
-    public LedgerTransactionsController(ILedgerService svc) => _svc = svc;
+    private readonly ILedgerService _svc = svc;
 
-    [HttpPost("accounts")]
+    [HttpPost("create/account")]
     public Task<AccountResponse> CreateAccount([FromBody] CreateAccountRequest req, CancellationToken ct)
         => _svc.CreateAccountAsync(req, ct);
 
