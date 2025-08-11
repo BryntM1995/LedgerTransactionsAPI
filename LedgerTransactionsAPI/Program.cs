@@ -36,6 +36,9 @@ builder.Services.AddScoped<ITransactionReadRepository, TransactionReadRepository
 builder.Services.AddScoped<ILedgerReadRepository, LedgerReadRepository>();
 builder.Services.AddSingleton<IFxRates, FxRatesStub>();
 
+// Middlewares
+builder.Services.AddTransient<ApiExceptionMiddleware>();
+
 // Outbox (config -> httpclient -> worker)
 builder.Services.Configure<OutboxOptions>(
     builder.Configuration.GetSection("Outbox"));
@@ -136,6 +139,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseMiddleware<ApiExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 
