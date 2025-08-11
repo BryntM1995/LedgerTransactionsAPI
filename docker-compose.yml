@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16
+    container_name: ledger_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: post1234.
+      POSTGRES_DB: ledger_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ledger_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ./LedgerTransactionsAPI 
+      dockerfile: Dockerfile
+    container_name: ledger-api
+    restart: unless-stopped
+    environment:
+      ConnectionStrings__Postgres: "Host=db;Port=5432;Database=ledger_db;Username=postgres;Password=post1234."
+
+      Jwt__Issuer: "LedgerApi"
+      Jwt__Audience: "LedgerApiClient"
+      Jwt__Key: "DEV_SUPER_SECRET_KEY_32CHARS_MIN_DEV"
+
+      Outbox__WebhookUrl: ""       
+      Outbox__BatchSize: "50"
+      Outbox__IntervalSeconds: "5"
+
+      # ASP.NET en puerto 8080
+      ASPNETCORE_URLS: "http://+:8080"
+
+      # Bandera que puedes usar para desactivar HTTPS redirection en container
+      DOTNET_RUNNING_IN_CONTAINER: "true"
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata: {}

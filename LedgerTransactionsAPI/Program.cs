@@ -134,10 +134,18 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // Pipeline
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI();
+
+if (app.Environment.IsDevelopment() && Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") != "true")
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseHttpsRedirection();
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<LedgerDbContext>();
+    await db.Database.MigrateAsync();
 }
 
 app.UseMiddleware<ApiExceptionMiddleware>();
