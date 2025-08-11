@@ -37,6 +37,8 @@ namespace LedgerTransactionsAPI.Data
                 e.Property(x => x.Amount).HasColumnType("numeric(18,2)");
                 e.Property(x => x.Date).HasColumnType("timestamptz");
                 e.HasIndex(x => new { x.Date, x.Id }).HasDatabaseName("ix_transactions_date_id");
+                e.Property(x => x.FxPair).HasMaxLength(7);         // "USD/DOP"
+                e.Property(x => x.FxRate).HasColumnType("numeric(18,6)");
             });
 
             // ledger_entries (doble partida)
@@ -49,6 +51,10 @@ namespace LedgerTransactionsAPI.Data
                 e.Property(x => x.Currency).HasMaxLength(3).IsRequired();
                 e.Property(x => x.CreatedAt).HasColumnType("timestamptz");
                 e.HasIndex(x => new { x.CreatedAt, x.Id }).HasDatabaseName("ix_ledger_entries_created_at_id");
+                e.Property(x => x.BaseCurrency).HasMaxLength(3);
+                e.Property(x => x.BaseDebit).HasColumnType("numeric(18,2)");
+                e.Property(x => x.BaseCredit).HasColumnType("numeric(18,2)");
+                e.Property(x => x.FxRate).HasColumnType("numeric(18,6)");
             });
 
             // idempotency_keys
@@ -78,7 +84,19 @@ namespace LedgerTransactionsAPI.Data
             var accA = new Account { Id = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), Holder = "Cuenta A", Currency = "DOP", AvailableBalance = 10000m, Version = 1, CreatedAt = DateTime.UtcNow };
             var accB = new Account { Id = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), Holder = "Cuenta B", Currency = "DOP", AvailableBalance = 2500m, Version = 1, CreatedAt = DateTime.UtcNow };
             var accC = new Account { Id = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"), Holder = "Cuenta C", Currency = "USD", AvailableBalance = 100m, Version = 1, CreatedAt = DateTime.UtcNow };
-            model.Entity<Account>().HasData(accA, accB, accC);
+
+            // 🔹 Cuenta interna para redondeo (moneda base DOP)
+            var accRounding = new Account
+            {
+                Id = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd"),
+                Holder = "FX_ROUNDING",
+                Currency = "DOP",
+                AvailableBalance = 0m,
+                Version = 1,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            model.Entity<Account>().HasData(accA, accB, accC, accRounding);
         }
     }
 }

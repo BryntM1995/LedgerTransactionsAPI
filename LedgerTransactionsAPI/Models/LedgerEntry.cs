@@ -10,5 +10,12 @@
         public string? Currency { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        // 🔹 Valuación en moneda base (ej. DOP)
+        public string? BaseCurrency { get; set; }        // "DOP"
+        public decimal? BaseDebit { get; set; }          // valuación del Debit
+        public decimal? BaseCredit { get; set; }         // valuación del Credit
+
+        // 🔹 Tasa FX usada (opcional, útil para auditoría en la fila)
+        public decimal? FxRate { get; set; }             // rate origen->destino cuando aplique
     }
 }

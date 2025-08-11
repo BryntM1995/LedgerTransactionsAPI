@@ -34,6 +34,7 @@ builder.Services.AddScoped<ILedgerService, LedgerService>();
 builder.Services.AddScoped<IReadService, ReadService>();
 builder.Services.AddScoped<ITransactionReadRepository, TransactionReadRepository>();
 builder.Services.AddScoped<ILedgerReadRepository, LedgerReadRepository>();
+builder.Services.AddSingleton<IFxRates, FxRatesStub>();
 
 // Outbox (config -> httpclient -> worker)
 builder.Services.Configure<OutboxOptions>(

@@ -11,19 +11,23 @@ public class LedgerService : ILedgerService
     private readonly ITransactionRepository _txs;
     private readonly ILedgerEntryRepository _entries;
     private readonly IOutboxRepository _outbox;
+    private readonly IFxRates _fx;
 
     public LedgerService(
         IUnitOfWork uow,
         IAccountRepository accounts,
         ITransactionRepository txs,
         ILedgerEntryRepository entries,
-        IOutboxRepository outbox)
+        IOutboxRepository outbox,
+        IFxRates fx)
+        
     {
         _uow = uow;
         _accounts = accounts;
         _txs = txs;
         _entries = entries;
         _outbox = outbox;
+        _fx = fx;
     }
 
     public async Task<AccountResponse> CreateAccountAsync(CreateAccountRequest req, CancellationToken ct = default)
@@ -134,14 +138,10 @@ public class LedgerService : ILedgerService
         var b = req.TargetAccountId;
         if (a.CompareTo(b) > 0) (a, b) = (b, a);
 
-        // Lock 1
-        var first = await _accounts.GetForUpdateAsync(a, ct)
-                     ?? throw new KeyNotFoundException("ACCOUNT_NOT_FOUND");
-        // Lock 2
-        var second = await _accounts.GetForUpdateAsync(b, ct)
-                     ?? throw new KeyNotFoundException("ACCOUNT_NOT_FOUND");
+        // Lock filas
+        var first = await _accounts.GetForUpdateAsync(a, ct) ?? throw new KeyNotFoundException("ACCOUNT_NOT_FOUND");
+        var second = await _accounts.GetForUpdateAsync(b, ct) ?? throw new KeyNotFoundException("ACCOUNT_NOT_FOUND");
 
-        // Reasignamos cuál es source/target según los IDs originales
         var source = first.Id == req.SourceAccountId ? first : second;
         var target = first.Id == req.TargetAccountId ? first : second;
 
@@ -150,37 +150,146 @@ public class LedgerService : ILedgerService
         if (source.AvailableBalance < req.Amount)
             throw new InvalidOperationException("INSUFFICIENT_FUNDS");
 
-        source.AvailableBalance -= req.Amount;
-        target.AvailableBalance += req.Amount;
+        // --- FX + valuación base ---
+        const string BASE = "DOP";
+        decimal Rate(string from, string to) => _fx.GetRate(from, to);
 
-        var soruceTransaction = new LedgerTransaction
+        var sameCurrency = string.Equals(source.Currency, target.Currency, StringComparison.OrdinalIgnoreCase);
+        decimal creditedToTarget;
+        decimal? fxRate = null;
+        string? fxPair = null;
+
+        if (sameCurrency)
+        {
+            creditedToTarget = req.Amount;
+        }
+        else
+        {
+            fxRate = Rate(source.Currency, target.Currency);
+            fxPair = $"{source.Currency}/{target.Currency}";
+            creditedToTarget = Math.Round(req.Amount * fxRate.Value, 2, MidpointRounding.AwayFromZero);
+        }
+
+        // Update balances
+        source.AvailableBalance -= req.Amount;
+        target.AvailableBalance += creditedToTarget;
+
+        // Transacciones (una por cuenta)
+        var sourceTx = new LedgerTransaction
         {
             Id = Guid.NewGuid(),
-            Type = "TRANSFER",
+            Type = sameCurrency ? "TRANSFER" : "TRANSFER_FX",
             Description = req.Description,
             Date = DateTime.UtcNow,
             Amount = req.Amount,
             AccountId = source.Id,
+            FxPair = fxPair,
+            FxRate = fxRate
         };
-
-        var targetTransaction = new LedgerTransaction
+        var targetTx = new LedgerTransaction
         {
             Id = Guid.NewGuid(),
-            Type = "TRANSFER",
+            Type = sameCurrency ? "TRANSFER" : "TRANSFER_FX",
             Description = req.Description,
             Date = DateTime.UtcNow,
-            Amount = req.Amount,
+            Amount = creditedToTarget,
             AccountId = target.Id,
+            FxPair = fxPair,
+            FxRate = fxRate
+        };
+        await _txs.AddRangeAsync([targetTx, sourceTx], ct);
+
+        // Valuación a moneda base
+        var baseSrc = Math.Round(req.Amount * Rate(source.Currency, BASE), 2, MidpointRounding.AwayFromZero);
+        var baseDst = Math.Round(creditedToTarget * Rate(target.Currency, BASE), 2, MidpointRounding.AwayFromZero);
+
+        var now = DateTime.UtcNow;
+
+        // Asientos principales
+        var srcEntry = new LedgerEntry
+        {
+            Id = Guid.NewGuid(),
+            TransactionId = sourceTx.Id,
+            AccountId = source.Id,
+            Debit = 0,
+            Credit = req.Amount,
+            Currency = source.Currency,
+            BaseCurrency = BASE,
+            BaseDebit = 0,
+            BaseCredit = baseSrc,
+            FxRate = sameCurrency ? null : fxRate,
+            CreatedAt = now
+        };
+        var dstEntry = new LedgerEntry
+        {
+            Id = Guid.NewGuid(),
+            TransactionId = targetTx.Id,
+            AccountId = target.Id,
+            Debit = creditedToTarget,
+            Credit = 0,
+            Currency = target.Currency,
+            BaseCurrency = BASE,
+            BaseDebit = baseDst,
+            BaseCredit = 0,
+            FxRate = sameCurrency ? null : fxRate,
+            CreatedAt = now
         };
 
-        await _txs.AddRangeAsync([targetTransaction , soruceTransaction], ct);
+        var entries = new List<LedgerEntry> { srcEntry, dstEntry };
 
-        await _entries.AddRangeAsync(
-        [
-        new LedgerEntry { Id = Guid.NewGuid(), TransactionId = soruceTransaction.Id, AccountId = source.Id, Debit = 0, Credit = req.Amount, Currency = source.Currency, CreatedAt = DateTime.UtcNow },
-        new LedgerEntry { Id = Guid.NewGuid(), TransactionId = targetTransaction.Id, AccountId = target.Id, Debit = req.Amount, Credit = 0, Currency = target.Currency, CreatedAt = DateTime.UtcNow }
-    ], ct);
+        // Asiento de redondeo (si hiciera falta para que sum(BaseDebit)==sum(BaseCredit))
+        var diff = Math.Round(baseDst - baseSrc, 2, MidpointRounding.AwayFromZero);
+        if (diff != 0)
+        {
+            // Bloquear y ajustar la cuenta interna de rounding (DOP)
+            var roundingId = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
+            var roundingAcc = await _accounts.GetForUpdateAsync(roundingId, ct)
+                             ?? throw new InvalidOperationException("ROUNDING_ACCOUNT_MISSING");
 
+            if (diff > 0)
+            {
+                // falta crédito en base → acreditamos rounding (Haber)
+                roundingAcc.AvailableBalance -= diff; // sale DOP de la cuenta FX_ROUNDING
+                entries.Add(new LedgerEntry
+                {
+                    Id = Guid.NewGuid(),
+                    TransactionId = targetTx.Id, // puedes asociarlo a cualquiera de los dos TX
+                    AccountId = roundingAcc.Id,
+                    Debit = 0,
+                    Credit = Math.Abs(diff),
+                    Currency = BASE,
+                    BaseCurrency = BASE,
+                    BaseDebit = 0,
+                    BaseCredit = Math.Abs(diff),
+                    FxRate = null,
+                    CreatedAt = now
+                });
+            }
+            else
+            {
+                // falta débito en base → debitamos rounding (Debe)
+                var abs = Math.Abs(diff);
+                roundingAcc.AvailableBalance += abs; // entra DOP a FX_ROUNDING
+                entries.Add(new LedgerEntry
+                {
+                    Id = Guid.NewGuid(),
+                    TransactionId = targetTx.Id,
+                    AccountId = roundingAcc.Id,
+                    Debit = abs,
+                    Credit = 0,
+                    Currency = BASE,
+                    BaseCurrency = BASE,
+                    BaseDebit = abs,
+                    BaseCredit = 0,
+                    FxRate = null,
+                    CreatedAt = now
+                });
+            }
+        }
+
+        await _entries.AddRangeAsync(entries, ct);
+
+        // Outbox (incluye detalles FX y valuación base)
         await _outbox.AddAsync(new DomainEvent
         {
             Id = Guid.NewGuid(),
@@ -189,17 +298,27 @@ public class LedgerService : ILedgerService
             {
                 sourceAccountId = source.Id,
                 targetAccountId = target.Id,
+                sourceCurrency = source.Currency,
+                targetCurrency = target.Currency,
                 amount = req.Amount,
-                currency = source.Currency,
-                transactionId = soruceTransaction.Id,
-                description = req.Description
+                creditedToTarget,
+                fxPair,
+                fxRate,
+                baseCurrency = BASE,
+                baseCreditSource = baseSrc,
+                baseDebitTarget = baseDst,
+                sourceTransactionId = sourceTx.Id,
+                targetTransactionId = targetTx.Id,
+                description = req.Description,
+                roundingApplied = diff != 0 ? diff : 0
             }),
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = now
         }, ct);
 
         await _uow.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
-        return soruceTransaction.Id;
+        return sourceTx.Id;
     }
+
 
 }

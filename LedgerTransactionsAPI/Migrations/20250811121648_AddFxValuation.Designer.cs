@@ -3,6 +3,7 @@ using System;
 using LedgerTransactionsAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LedgerTransactionsAPI.Migrations
 {
     [DbContext(typeof(LedgerDbContext))]
-    partial class LedgerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250811121648_AddFxValuation")]
+    partial class AddFxValuation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -58,7 +61,7 @@ namespace LedgerTransactionsAPI.Migrations
                         {
                             Id = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
                             AvailableBalance = 10000m,
-                            CreatedAt = new DateTime(2025, 8, 11, 12, 41, 37, 676, DateTimeKind.Utc).AddTicks(7905),
+                            CreatedAt = new DateTime(2025, 8, 11, 12, 16, 48, 59, DateTimeKind.Utc).AddTicks(3559),
                             Currency = "DOP",
                             Holder = "Cuenta A",
                             Version = 1
@@ -67,7 +70,7 @@ namespace LedgerTransactionsAPI.Migrations
                         {
                             Id = new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
                             AvailableBalance = 2500m,
-                            CreatedAt = new DateTime(2025, 8, 11, 12, 41, 37, 676, DateTimeKind.Utc).AddTicks(7910),
+                            CreatedAt = new DateTime(2025, 8, 11, 12, 16, 48, 59, DateTimeKind.Utc).AddTicks(3561),
                             Currency = "DOP",
                             Holder = "Cuenta B",
                             Version = 1
@@ -76,18 +79,9 @@ namespace LedgerTransactionsAPI.Migrations
                         {
                             Id = new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"),
                             AvailableBalance = 100m,
-                            CreatedAt = new DateTime(2025, 8, 11, 12, 41, 37, 676, DateTimeKind.Utc).AddTicks(7912),
+                            CreatedAt = new DateTime(2025, 8, 11, 12, 16, 48, 59, DateTimeKind.Utc).AddTicks(3563),
                             Currency = "USD",
                             Holder = "Cuenta C",
-                            Version = 1
-                        },
-                        new
-                        {
-                            Id = new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-                            AvailableBalance = 0m,
-                            CreatedAt = new DateTime(2025, 8, 11, 12, 41, 37, 676, DateTimeKind.Utc).AddTicks(7914),
-                            Currency = "DOP",
-                            Holder = "FX_ROUNDING",
                             Version = 1
                         });
                 });
