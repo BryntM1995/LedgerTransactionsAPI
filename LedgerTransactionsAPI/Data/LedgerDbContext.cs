@@ -23,12 +23,12 @@ namespace LedgerTransactionsAPI.Data
                 e.Property(x => x.Holder).IsRequired();
                 e.Property(x => x.Currency).HasMaxLength(3).IsRequired();
                 e.Property(x => x.AvailableBalance).HasColumnType("numeric(18,2)");
-                e.Property(x => x.Version).IsConcurrencyToken(); // optimistic locking
+                e.Property(x => x.Version).IsConcurrencyToken(); 
                 e.Property(x => x.CreatedAt).HasColumnType("timestamptz");
                 e.HasIndex(x => new { x.CreatedAt, x.Id });
             });
 
-            // transactions (vista de alto nivel de movimientos)
+            // transactions
             model.Entity<LedgerTransaction>(e =>
             {
                 e.ToTable("transactions");
@@ -37,7 +37,7 @@ namespace LedgerTransactionsAPI.Data
                 e.Property(x => x.Amount).HasColumnType("numeric(18,2)");
                 e.Property(x => x.Date).HasColumnType("timestamptz");
                 e.HasIndex(x => new { x.Date, x.Id }).HasDatabaseName("ix_transactions_date_id");
-                e.Property(x => x.FxPair).HasMaxLength(7);         // "USD/DOP"
+                e.Property(x => x.FxPair).HasMaxLength(7);         
                 e.Property(x => x.FxRate).HasColumnType("numeric(18,6)");
             });
 

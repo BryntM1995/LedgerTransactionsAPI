@@ -249,7 +249,7 @@ public class LedgerService : ILedgerService
             if (diff > 0)
             {
                 // falta crédito en base → acreditamos rounding (Haber)
-                roundingAcc.AvailableBalance -= diff; // sale DOP de la cuenta FX_ROUNDING
+                roundingAcc.AvailableBalance -= diff; 
                 entries.Add(new LedgerEntry
                 {
                     Id = Guid.NewGuid(),

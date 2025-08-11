@@ -21,16 +21,12 @@ public class AuthController : ControllerBase
     [HttpPost("token")]
     public ActionResult<TokenResponse> Issue([FromBody] TokenRequest req)
     {
-        // DEMO: usuarios hard-coded
-        // teller -> role Teller + claim acct (una cuenta)
-        // auditor -> role Auditor
         string? role = null;
         var claims = new List<Claim>();
 
         if (req.Username == "teller" && req.Password == "teller123")
         {
             role = "Teller";
-            // Asocia al teller con UNA cuenta (ajusta con el GUID real de tu Seeder)
             claims.Add(new Claim("acct", "5991b3be-4241-42b7-8b3c-59b954d6d4e6"));
             claims.Add(new Claim(ClaimTypes.Role, "Teller"));
             claims.Add(new Claim("sub", "user-teller-1"));

@@ -55,7 +55,6 @@ public class OutboxPublisher : BackgroundService
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        // Selección con nombres EXACTOS de columnas (PascalCase con comillas)
         var events = await db.DomainOutbox
             .FromSqlRaw(@"
             SELECT ""Id"", ""Type"", ""Payload"", ""CreatedAt"", ""Published"", ""PublishedAt""

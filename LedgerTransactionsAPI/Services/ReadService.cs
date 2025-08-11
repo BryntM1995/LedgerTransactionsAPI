@@ -21,7 +21,6 @@ public class ReadService : IReadService
         limit = Math.Clamp(limit, 1, 100);
 
         var page = await _txRead.ListByAccountAsync(accountId, limit, cursor, direction, ct);
-        // page ya es PagedResult<TransactionItem> si tu repo lo devuelve así.
         return page;
     }
 
